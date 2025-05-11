@@ -1,0 +1,128 @@
+package com.example.demo.service;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.example.demo.entity.BookedRoom;
+import com.example.demo.entity.Room;
+import com.example.demo.exception.InvalidBookingRequestException;
+import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.repository.BookingRepository;
+import com.example.demo.response.BookingResponse;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
+
+@Service
+public class BookingServiceImpl implements BookingService{
+
+	
+	private final BookingRepository bookingRepository;
+	private final RoomService roomService;
+	
+	@Override
+	public List<BookedRoom> findAllBookings() {
+		return bookingRepository.findAll();
+	}
+	
+	@Override
+	public List<BookedRoom> getAllBookingsByRoomId(Long roomId) {
+		
+		return bookingRepository.findByRoomId(roomId);
+	}
+
+	@Override
+	public void cancelBooking(Long bookingId) {
+		
+		
+		bookingRepository.deleteById(bookingId);
+		
+	}
+	
+	
+   @Transactional
+	@Override
+	public String saveBooking(Long roomId, BookedRoom bookingRequest) throws SQLException {
+		
+		if(bookingRequest.getCheckOutDate().isBefore(bookingRequest.getCheckInDate()))
+		{
+			throw new InvalidBookingRequestException("check in date must be come before check put date");
+		}
+		Room room=roomService.getRoomByRoomId(roomId);
+		List<BookedRoom> existingBookings= room.getBookings();
+		boolean roomIsAvailable=roomIsAvailable(bookingRequest,existingBookings);
+		  if(roomIsAvailable) {
+			    room.addBooking(bookingRequest);
+			    bookingRepository.save(bookingRequest);
+		  }
+		  else {
+			  throw new InvalidBookingRequestException("Soory !  this room has been boooked for the selected dates this room is not available  ");
+		  }
+		return bookingRequest.getBookingConfirmationCode();
+	}
+
+	@Override
+	public BookedRoom findByBookingConfirmationCode(String confirmationCode) throws ResourceNotFoundException
+	{
+	   BookedRoom bookedRoom =bookingRepository.findByBookingConfirmationCode(confirmationCode);
+	    if(bookedRoom!=null) {
+	    	return bookedRoom;
+	    }
+	    else {
+	    	throw new ResourceNotFoundException("the given confirmationCode is nto found enter correct confirmatjion code");
+	    }
+	}
+	
+	  @Transactional
+	private boolean roomIsAvailable(BookedRoom bookingRequest,List<BookedRoom> existingBookings) {
+		 return existingBookings.stream()
+	                .noneMatch(existingBooking ->
+	                        bookingRequest.getCheckInDate().equals(existingBooking.getCheckInDate())
+	                                || bookingRequest.getCheckOutDate().isBefore(existingBooking.getCheckOutDate())
+	                                || (bookingRequest.getCheckInDate().isAfter(existingBooking.getCheckInDate())
+	                                && bookingRequest.getCheckInDate().isBefore(existingBooking.getCheckOutDate()))
+	                                || (bookingRequest.getCheckInDate().isBefore(existingBooking.getCheckInDate())
+
+	                                && bookingRequest.getCheckOutDate().equals(existingBooking.getCheckOutDate()))
+	                                || (bookingRequest.getCheckInDate().isBefore(existingBooking.getCheckInDate())
+
+	                                && bookingRequest.getCheckOutDate().isAfter(existingBooking.getCheckOutDate()))
+
+	                                || (bookingRequest.getCheckInDate().equals(existingBooking.getCheckOutDate())
+	                                && bookingRequest.getCheckOutDate().equals(existingBooking.getCheckInDate()))
+
+	                                || (bookingRequest.getCheckInDate().equals(existingBooking.getCheckOutDate())
+	                                && bookingRequest.getCheckOutDate().equals(bookingRequest.getCheckInDate()))
+	                );
+		
+                
+		
+	}
+
+	@Override
+	public List<BookedRoom> getAllBookings() {
+		return bookingRepository.findAll();
+	}
+	
+	
+	
+  @Transactional
+	@Override
+	public List<BookingResponse> getByGuestEmail(String email) {
+		List<BookedRoom> bookedRoom=bookingRepository.findByGuestEmail(email);
+		List<BookingResponse> bookingResponse=new ArrayList<>();
+		bookedRoom.stream().forEach(a->bookingResponse.add(new BookingResponse(a)));
+		
+		return bookingResponse;
+	}
+
+	
+	
+	
+
+}
