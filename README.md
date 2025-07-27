@@ -67,11 +67,7 @@ This is a full-stack hotel room booking web application built using **React.js**
 ## 📸 Screenshots
 (Add screenshots of home page, booking page, admin panel, etc.)
 
-## ✅ Future Improvements
-- Room availability calendar
-- User booking history
-- Multi-language support
-- Mobile responsive PWA version
+
 
 ## 🧑‍💻 Author
 - **Your Name** – [https://github.com/Vijaygmvg]
